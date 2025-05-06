@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Transaction History</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #4a4a4a;
+            color: white;
+        }
+        .container-fluid {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .row {
+            display: flex;
+            flex-grow: 1;
+        }
+        .left-panel {
+            width: 40%;
+            background-color: #555;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .transactions {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px;
+        }
+        .transactions button {
+            flex: 1;
+            margin: 0 5px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .datetime {
+            text-align: center;
+            padding: 10px;
+            background: #666;
+        }
+        .right-panel {
+            width: 60%;
+            background-color: #888;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: #999;
+        }
+        .actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            padding: 20px;
+        }
+        .actions button {
+            padding: 15px;
+            font-size: 14px;
+            background: #ccc;
+            border: none;
+            border-radius: 5px;
+            text-align: center;
+            color: black;
+            width: 100%;
+            min-height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        .history-list-container {
+            flex-grow: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+        .transaction {
+            border: 1px solid #ccc;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            color: #333;
+        }
+        .transaction h3 {
+            margin: 0 0 10px;
+            color: #555;
+        }
+        .transaction ul {
+            list-style: none;
+            padding: 0;
+        }
+        .transaction ul li {
+            padding: 4px 0;
+            border-bottom: 1px dashed #ddd;
+        }
+        .transaction ul li:last-child {
+            border-bottom: none;
+        }
+        .total {
+            font-weight: bold;
+            margin-top: 10px;
+            color: #007bff;
+        }
+        .footer-buttons {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 20px;
+        }
+        .footer-buttons button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid h-100">
+        <div class="row h-100">
+            <div class="col-md-4 left-panel d-flex flex-column justify-content-between">
+                <div>
+                    <div class="transactions d-flex justify-content-around p-2">
+                        <button onclick="window.location.href='index.html'" class="btn btn-secondary flex-grow-1 mr-1">Back to POS</button>
+                        <button class="btn btn-secondary flex-grow-1 mr-1">Filters</button>
+                        <button class="btn btn-secondary flex-grow-1">Search</button>
+                    </div>
+                    <div class="datetime bg-secondary text-center p-2"></div>
+                    <div class="actions">
+                        <button id="export-csv" class="btn btn-primary btn-block">Export CSV</button>
+                        <button id="export-pdf" class="btn btn-info btn-block">Export PDF</button>
+                        <button class="btn btn-warning btn-block">View Details</button>
+                        <button class="btn btn-danger btn-block">Delete History</button>
+                    </div>
+                </div>
+                <div class="scroll-btns d-flex justify-content-center p-2">
+                    <button class="btn btn-outline-light mr-1">&uarr;</button>
+                    <button class="btn btn-outline-light">&darr;</button>
+                </div>
+            </div>
+
+            <div class="col-md-8 right-panel d-flex flex-column justify-content-between">
+                <div class="info-bar bg-light text-dark d-flex justify-content-between p-2">
+                    <div>History Count: <span id="history-count">0</span></div>
+                    <div>
+                    </div>
+                </div>
+                <div class="history-list-container p-2 overflow-auto flex-grow-1" id="history-list">
+                </div>
+                <div class="footer-buttons bg-secondary d-flex justify-content-between p-2">
+                    <button id="print-history" class="btn btn-light">Print History</button>
+                    <button class="btn btn-outline-light">&larr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        function displayHistory() {
+            const history = JSON.parse(localStorage.getItem('pos_history') || '[]');
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+
+            if (history.length === 0) {
+                list.innerHTML = '<p>No transactions found.</p>';
+                return;
+            }
+
+            const reversedHistory = [...history].reverse();
+
+            reversedHistory.forEach(entry => {
+                const div = document.createElement('div');
+                div.className = 'transaction';
+                let itemsList = '<ul>';
+                entry.items.forEach(item => {
+                    const nameOrStatus = item.name ? item.name : (item.status ? item.status : '-');
+                    const total = item.total ? `£${item.total.toFixed(2)}` : '-';
+                    itemsList += `<li>${nameOrStatus} — Qty: ${item.qty || '-'}, Total: ${total}</li>`;
+                });
+                itemsList += '</ul>';
+
+                div.innerHTML = `
+                    <h3>Type: ${entry.type}</h3>
+                    <p>Date: ${entry.timestamp}</p>
+                    ${itemsList}
+                    <div class="total">Total: £${entry.total.toFixed(2)}</div>
+                    <button class="print-receipt-btn btn btn-sm btn-primary mt-2" >Print Receipt</button>
+                `;
+                div.querySelector('.print-receipt-btn').addEventListener('click', () => printReceipt(entry));
+                list.appendChild(div);
+            });
+
+            document.getElementById('history-count').textContent = history.length;
+
+        }
+
+        function printReceipt(transaction) {
+
+            let receiptWindow = window.open('', '', 'width=400,height=600');
+            receiptWindow.document.write('<html><head><title>Receipt</title></head><body>');
+            receiptWindow.document.write('<h2>Transaction Receipt</h2>');
+            receiptWindow.document.write(`<p>Date: ${transaction.timestamp}</p>`);
+            receiptWindow.document.write('<table border="1" width="100%" style="border-collapse: collapse;"><tr><th>Item</th><th>Qty</th><th>Total</th></tr>');
+
+            let total = 0;
+            transaction.items.forEach(item => {
+                const nameOrStatus = item.name ? item.name : (item.status ? item.status : '-');
+                const qty = item.qty || '-';
+                const itemTotal = item.total ? item.total.toFixed(2) : '-';
+                receiptWindow.document.write(`<tr><td>${nameOrStatus}</td><td>${qty}</td><td>${itemTotal}</td></tr>`);
+                if (item.total) {
+                    total += item.total;
+                }
+            });
+
+            receiptWindow.document.write('</table>');
+            receiptWindow.document.write(`<h3>Total: £${total.toFixed(2)}</h3>`);
+            receiptWindow.document.write('</body></html>');
+
+            receiptWindow.document.close();
+            receiptWindow.print();
+        }
+
+        document.addEventListener('DOMContentLoaded', displayHistory);
+
+        // ========== Export CSV Functionality ==========
+        document.getElementById('export-csv').addEventListener('click', () => {
+            const history = JSON.parse(localStorage.getItem('pos_history') || '[]');
+            if (history.length > 0) {
+                let csvContent = "Transaction ID,Timestamp,Type,Item Name,Quantity,Total\n";
+                history.forEach(entry => {
+                    entry.items.forEach(item => {
+                        const nameOrStatus = item.name ? item.name : (item.status ? item.status : '-');
+                        const qty = item.qty || '-';
+                        const itemTotal = item.total?.toFixed(2) || '-';
+                        csvContent += `${entry.transactionId},${entry.timestamp},${entry.type},"${nameOrStatus}",${qty},${itemTotal}\n`;
+                    });
+                    if (entry.items.length === 0) {
+                        csvContent += `${entry.transactionId},${entry.timestamp},${entry.type},,,${entry.total?.toFixed(2) || '-'}\n`;
+                    }
+                });
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', 'transaction_history.csv');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                alert('No history to export.');
+            }
+        });
+
+        // ========== Export PDF Functionality ==========
+        document.getElementById('export-pdf').addEventListener('click', () => {
+            const history = JSON.parse(localStorage.getItem('pos_history') || '[]');
+            if (history.length > 0) {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF();
+                let y = 20;
+                const lineHeight = 10;
+                const margin = 10;
+
+                pdf.setFontSize(16);
+                pdf.text('Transaction History', margin, y);
+                y += 15;
+                pdf.setFontSize(10);
+
+                history.forEach(entry => {
+                    pdf.text(`Transaction ID: ${entry.transactionId}`, margin, y);
+                    y += lineHeight;
+                    pdf.text(`Date: ${entry.timestamp}`, margin, y);
+                    y += lineHeight;
+                    pdf.text(`Type: ${entry.type}`, margin, y);
+                    y += lineHeight;
+                    pdf.text('Items:', margin, y);
+                    y += lineHeight;
+
+                    entry.items.forEach(item => {
+                        const nameOrStatus = item.name ? item.name : (item.status ? item.status : '-');
+                        const qty = item.qty || '-';
+                        const itemTotal = item.total ? item.total.toFixed(2) : '-';
+                        pdf.text(`  - ${nameOrStatus} — Qty: ${qty}, Total: £${itemTotal}`, margin + 5, y);
+                        y += lineHeight;
+                    });
+
+                    pdf.setFontSize(12);
+                    pdf.text(`Total: £${entry.total.toFixed(2)}`, margin, y);
+                    pdf.setFontSize(10);
+                    y += lineHeight + 5;
+
+                    if (y > pdf.internal.pageSize.getHeight() - margin - 20) {
+                        pdf.addPage();
+                        y = margin + 20;
+                    }
+                });
+
+                pdf.save('transaction_history.pdf');
+            } else {
+                alert('No history to export as PDF.');
+            }
+        });
+    </script>
+    <script type="module">
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-analytics.js";
+      // TODO: Add SDKs for Firebase products that you want to use
+      // https://firebase.google.com/docs/web/setup#available-libraries
+    
+      // Your web app's Firebase configuration
+      // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+      const firebaseConfig = {
+        apiKey: "AIzaSyAPCIIDrZJaNYrr6cQjdg4SvLDI8KmKYL0",
+        authDomain: "ports-pos.firebaseapp.com",
+        projectId: "ports-pos",
+        storageBucket: "ports-pos.firebasestorage.app",
+        messagingSenderId: "16622415342",
+        appId: "1:16622415342:web:4c550655eb8a4b91c1b2ff",
+        measurementId: "G-S5TLTEN4LH"
+      };
+    
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+    </script>
+</body>
+</html>
