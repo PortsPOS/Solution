@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>POS System</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-    <style>
+    <link rel="manifest" href="manifest.json"> <style>
         html, body {
             height: 100%;
             margin: 0;
@@ -133,6 +133,16 @@
             background-color: rgba(255, 255, 255, 0.2); /* Slight transparent white */
             color: white;
         }
+        #offline-message {
+            display: none;
+            color: red;
+            font-weight: bold;
+            margin-top: 20px;
+            text-align: center;
+        }
+        .offline #offline-message {
+            display: block;
+        }
 
     </style>
 </head>
@@ -218,10 +228,35 @@
                         Back
                     </button>
                 </div>
+                <div id="offline-message">You are currently offline. Some features may be unavailable.</div>
             </div>
         </div>
     </div>
+    <script>
+        // Check for service worker support
+        if ('serviceWorker' in navigator) {
+            // Register the service worker
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('Service Worker registered successfully:', registration);
+                })
+                .catch(error => {
+                    console.log('Service Worker registration failed:', error);
+                });
+             //check online status
+            function updateOnlineStatus() {
+                if (navigator.onLine) {
+                    document.body.classList.remove('offline');
+                } else {
+                    document.body.classList.add('offline');
+                }
+            }
 
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            updateOnlineStatus(); //check initial status
+        }
+    </script>
     <script src="script.js"></script>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.3/dist/umd/popper.min.js" integrity="sha384-eMNCOe7tC1doHpGoWe/6oMVemdAVTMs2xqW4mwXrXsW0L84Iytr2v5PdgyP1wR0Fj" crossorigin="anonymous"></script>
